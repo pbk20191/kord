@@ -1,3 +1,4 @@
+
 plugins {
     `kord-multiplatform-module`
     `kord-publishing`
@@ -33,6 +34,7 @@ kotlin {
     }
 }
 
+group = Library.group
 tasks {
     dokkaHtmlMultiModule {
         enabled = false
