@@ -90,15 +90,21 @@ public class DefaultGateway(private val data: DefaultGatewayData) : Gateway {
         compression = initialUrl.parameters.contains("compress", "zlib-stream")
 
         val sequence = Sequence()
-        SequenceHandler(events, sequence)
-        handshakeHandler = HandshakeHandler(events, initialUrl, ::trySend, sequence, data.reconnectRetry)
-        HeartbeatHandler(events, ::trySend, { restart(Close.ZombieConnection) }, { _ping.value = it }, sequence)
-        ReconnectHandler(events) { restart(Close.Reconnecting) }
-        InvalidSessionHandler(events) { restart(it) }
+        val coroutineContext = coroutineContext.minusKey(Job)
+        SequenceHandler(events, sequence, coroutineContext)
+            .start()
+        handshakeHandler = HandshakeHandler(events, initialUrl, ::trySend, sequence, data.reconnectRetry, coroutineContext)
+            .also { it.start() }
+        HeartbeatHandler(events, ::trySend, { restart(Close.ZombieConnection) }, { _ping.value = it }, sequence, coroutineContext)
+            .start()
+        ReconnectHandler(events, coroutineContext) { restart(Close.Reconnecting) }
+            .start()
+        InvalidSessionHandler(events, coroutineContext) { restart(it) }
+            .start()
     }
 
     //running on default dispatchers because ktor does *not* like running on an EmptyCoroutineContext from main
-    override suspend fun start(configuration: GatewayConfiguration): Unit = withContext(Dispatchers.Default) {
+    override suspend fun start(configuration: GatewayConfiguration): Unit = withContext(data.dispatcher) {
         resetState(configuration)
 
         while (data.reconnectRetry.hasNext && state.value is State.Running) {

@@ -4,15 +4,19 @@ import dev.kord.gateway.*
 import dev.kord.gateway.retry.Retry
 import io.ktor.http.*
 import kotlinx.atomicfu.atomic
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlin.coroutines.CoroutineContext
 
 internal class HandshakeHandler(
     flow: Flow<Event>,
     private val initialUrl: Url,
     private val send: suspend (Command) -> Unit,
     private val sequence: Sequence,
-    private val reconnectRetry: Retry
-) : Handler(flow, "HandshakeHandler") {
+    private val reconnectRetry: Retry,
+    parentContext: CoroutineContext = SupervisorJob() + Dispatchers.Default
+) : Handler(flow, "HandshakeHandler", parentContext) {
 
     lateinit var configuration: GatewayConfiguration
 

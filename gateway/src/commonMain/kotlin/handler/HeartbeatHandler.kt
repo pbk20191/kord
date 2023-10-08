@@ -3,20 +3,25 @@ package dev.kord.gateway.handler
 import dev.kord.gateway.*
 import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.update
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
-internal class HeartbeatHandler(
+internal class HeartbeatHandler @OptIn(ExperimentalStdlibApi::class) constructor(
     flow: Flow<Event>,
     private val send: suspend (Command) -> Unit,
     private val restart: suspend () -> Unit,
     private val ping: (Duration) -> Unit,
     private val sequence: Sequence,
-    private val ticker: Ticker = Ticker(),
-    private val timeSource: TimeSource = TimeSource.Monotonic
-) : Handler(flow, "HeartbeatHandler") {
+    parentContext: CoroutineContext = SupervisorJob() + Dispatchers.Default,
+    private val ticker: Ticker = Ticker(parentContext[CoroutineDispatcher] ?: Dispatchers.Default),
+    private val timeSource: TimeSource = TimeSource.Monotonic,
+) : Handler(flow, "HeartbeatHandler", parentContext) {
 
     private val possibleZombie = atomic(false)
     private var timestamp: TimeMark = timeSource.markNow()

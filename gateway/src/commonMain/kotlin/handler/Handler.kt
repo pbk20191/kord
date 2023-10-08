@@ -14,17 +14,17 @@ private val logger = KotlinLogging.logger("[Handler]")
 internal abstract class Handler(
     val flow: Flow<Event>,
     val name: String,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default
-) : CoroutineScope {
-    override val coroutineContext: CoroutineContext = SupervisorJob() + dispatcher
+    parentContext: CoroutineContext = SupervisorJob() + Dispatchers.Default
+) {
 
-    init {
-        launch {
-            start()
-        }
+    val scope = CoroutineScope(
+        parentContext + SupervisorJob(parentContext[Job])
+        + CoroutineName(name)
+    )
+
+    open fun start() {
+
     }
-
-    open fun start() {}
 
     inline fun <reified T> on(crossinline block: suspend (T) -> Unit) {
         flow.filterIsInstance<T>().onEach {
@@ -33,7 +33,7 @@ internal abstract class Handler(
             } catch (exception: Exception) {
                 logger.error(exception) { "[$name]" }
             }
-        }.launchIn(this)
+        }.launchIn(scope)
     }
 
 }

@@ -53,6 +53,7 @@ public abstract class BaseKordBuilder internal constructor(public val token: Str
                 DefaultGateway {
                     client = resources.httpClient
                     identifyRateLimiter = rateLimiter
+                    dispatcher = defaultDispatcher
                 }
             }
         }
